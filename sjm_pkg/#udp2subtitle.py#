@@ -5,7 +5,6 @@ from PyQt5.QtCore import Qt, pyqtSignal, QObject
 from PyQt5.QtCore import QTimer,QDateTime, QTextStream, QFile
 from sjm_pkg.time_routines import removeZZfromJDStime
 
-
 class UDP2subtitle(QObject):
 
     new_captions = pyqtSignal(str,name = 'new_captions')
@@ -49,6 +48,8 @@ class UDP2subtitle(QObject):
         self.write2srtTimer.timeout.connect(self.on_write2srt_timeout)
 
         self.initiated = False
+        self.busy = False
+
 
     def start_logging(self):
         self.srt_counter=0
@@ -59,15 +60,16 @@ class UDP2subtitle(QObject):
         self.initiated = True
 
     def on_write2srt_timeout(self):
-        self.out2log()
-        self.out2srt()
+        if not self.busy:
+#            self.out2log()
+            self.out2srt()
 
-    def out2log(self):
-        self.logstream << systime() << "\n"
-        self.logstream << self.metastr1 << "\n"
-        self.logstream << self.metastr2 << "\n"
-        self.logstream << self.metastr3 << "\n"
-        self.logstream << self.metastr4 << "\n"
+    # def out2log(self):
+    #     self.logstream << systime() << "\n" 
+    #     self.logstream << self.metastr1 << "\n"
+    #     self.logstream << self.metastr2 << "\n"
+    #     self.logstream << self.metastr3 << "\n"
+    #     self.logstream << self.metastr4 << "\n"
 
     def out2srt(self):
         self.srt_counter += 1
@@ -161,21 +163,38 @@ class UDP2subtitle(QObject):
         self.start_msec = epoch_msecs()
         self.srt_counter = 0
         self.gen_new_outnames()
-        self.logfileh.close()
+        
+        self.busy = True
+#        self.logfileh.close()
         self.srtfile1h.close()
         self.srtfile2h.close()
         self.srtfile3h.close()
         self.srtfile4h.close()
+        self.busy = False
+        
         self.open_outfiles()
 
     def open_outfiles(self):
         print("udp2subtitle.py: Opening files")
-        self.logfileh = QFile(self.logfile)
-        if not self.logfileh.open(QFile.WriteOnly):
-            QMessageBox.warning(self, \
-                                    self.tr \
-                                    ("Cant open file %1:\n%2").arg \
-                                    (self.logfile).arg(file.errorString()))
+        self.busy = True
+        # 
+        # self.logfileh.open(QFile.WriteOnly)
+        # 
+        # self.srtfile1h.open(QFile.WriteOnly)
+        # self.srtfile2h = QFile(self.srtfile2)
+        # self.srtfile2h.open(QFile.WriteOnly)
+        # self.srtfile3h = QFile(self.srtfile3)
+        # self.srtfile3h.open(QFile.WriteOnly)
+        # self.srtfile4h = QFile(self.srtfile4)
+        # self.srtfile4h.open(QFile.WriteOnly)
+        
+
+        # self.logfileh = QFile(self.logfile)
+        # if not self.logfileh.open(QFile.WriteOnly):
+        #     QMessageBox.warning(self, \
+        #                             self.tr \
+        #                             ("Cant open file %1:\n%2").arg \
+        #                            (self.logfile).arg(file.errorString()))
 
         self.srtfile1h = QFile(self.srtfile1)
         if not self.srtfile1h.open(QFile.WriteOnly):
@@ -207,24 +226,33 @@ class UDP2subtitle(QObject):
 
 
         # Tie a QTextStream to each of the filehandles
-        self.logstream = QTextStream(self.logfileh)
+        print("Tying textStreams to filehandles")
+        #self.logstream = QTextStream(self.logfileh)
         self.srtstream1 = QTextStream(self.srtfile1h)
         self.srtstream2 = QTextStream(self.srtfile2h)
         self.srtstream3 = QTextStream(self.srtfile3h)
         self.srtstream4 = QTextStream(self.srtfile4h)
+        print("Done tying textStreams to filehandles")
 
+        self.busy = False
+        
     def isInitiated(self):
         return self.initiated
 
-    def get_logfilename(self):
-        return self.logfile
+#    def get_logfilename(self):
+#        return self.logfile
 
     def gen_new_outnames(self):
         # SJM 2/2021 Add outpaths based on cruise ID and lowering ID
 #        if ( (self.cruiseid != self.prior_cruiseid) or (self.loweringid != self.prior_loweringid) ):
-        srtoutpath = ("/h264Data/Subtitles/"+self.cruiseid+"/"+self.loweringid)
-        txtoutpath = ("/h264Data/Metadata/"+self.cruiseid+"/"+self.loweringid)
-            
+#        srtoutpath = ("/h264Data/Subtitles/"+self.cruiseid+"/"+self.loweringid.rstrip())
+#        txtoutpath = ("/h264Data/Metadata/"+self.cruiseid+"/"+self.loweringid.rstrip())
+        srtoutpath = ("./Subtitles/"+self.cruiseid+"/"+self.loweringid.rstrip())
+        txtoutpath = ("./Metadata/"+self.cruiseid+"/"+self.loweringid.rstrip())
+
+        print(srtoutpath)
+        print(txtoutpath)
+        
         if not os.path.isdir(srtoutpath):
             pathlib.Path(srtoutpath).mkdir(parents=True, exist_ok=True)
             pathlib.Path(txtoutpath).mkdir(parents=True, exist_ok=True)
@@ -232,19 +260,14 @@ class UDP2subtitle(QObject):
             #os.mkdir(txtoutpath, 0o0755)
 
         nowstr = systime()
-        self.logfile = '%s/%s%s' % (txtoutpath, nowstr, '.txt')
+        print(nowstr)
+#        self.logfile = '%s/%s%s' % (txtoutpath, nowstr, '.txt')
         self.srtfile1 = '%s/%s%s' % (srtoutpath, nowstr, '_st1.srt')
         self.srtfile2 = '%s/%s%s' % (srtoutpath, nowstr, '_st2.srt')
         self.srtfile3 = '%s/%s%s' % (srtoutpath, nowstr, '_st3.srt')
         self.srtfile4 = '%s/%s%s' % (srtoutpath, nowstr, '_st4.srt')
 
-    def stop_logging(self):
-        try:
-            self.logfileh
-        except:
-            pass
-        else:
-            self.logfileh.close()
+     def stop_logging(self):
 
         try:
             self.srtfileh
@@ -252,6 +275,13 @@ class UDP2subtitle(QObject):
             pass
         else:
             self.srtfileh.close()
+
+             #     try:
+             #         self.logfileh
+             #     except:
+             #         pass
+             #     else:
+             #         self.logfileh.close()
         
     def get_metastr1(self):
         return self.metastr1

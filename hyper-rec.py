@@ -21,15 +21,15 @@ class HyperRecGUI(QMainWindow):
         self.ui.setupUi(self)
         # Turn off start button until an ODR packet comes in
         self.ui.startButton.setEnabled(False)
-        # change buttin appearance also?
+        # change button appearance also?
         self.ui.quitButton.clicked.connect(self.on_quit_button)
         self.ui.stopButton.clicked.connect(self.on_stop_button)
         self.ui.startButton.clicked.connect(self.on_start_button)
 
         self.do_init(inifname)
-        
+
         # Allow simulate of UDP messges for debugging
-        simulate_udp = True
+        simulate_udp = False
         
         # Invoke classes for ingesting UDP broadcasts and writing subtitles
         # UDP2subtitle both logs subtitles to a file and generates
@@ -49,9 +49,9 @@ class HyperRecGUI(QMainWindow):
         self.meta_receiver.new_jds.connect(self.subtitleGen.updateJDS)
         self.meta_receiver.new_odr.connect(self.subtitleGen.updateODR)
 
-        self.deck1 = Hyperdeck_driver(self.hydeck1_IP, self.hydeck1_label, 2)
-        self.deck2 = Hyperdeck_driver(self.hydeck2_IP, self.hydeck2_label, 2)
-        self.deck3 = Hyperdeck_driver(self.hydeck3_IP, self.hydeck3_label, 2)
+        self.deck1 = Hyperdeck_driver(self.hydeck1_IP, self.hydeck1_label, self.clip_duration)
+        self.deck2 = Hyperdeck_driver(self.hydeck2_IP, self.hydeck2_label, self.clip_duration)
+        self.deck3 = Hyperdeck_driver(self.hydeck3_IP, self.hydeck3_label, self.clip_duration)
 
         self.deck1.deck_connected.connect(self.on_deck1_good_ping)
         self.deck2.deck_connected.connect(self.on_deck2_good_ping)
@@ -129,14 +129,7 @@ class HyperRecGUI(QMainWindow):
         self.ui.clipTimeLabel.setText(str(self.cliptimecounter))
         
     def do_init(self, inifname):
-        #self.hydeck1_IP="198.17.154.97"
-        #self.hydeck1_label="SciCam"
-        #self.hydeck2_IP="198.17.154.98"
-        #self.hydeck2_label="BrowCam"
-        #self.hydeck3_IP="198.17.154.99"
-        #self.hydeck3_label="PilotCam"
-        #self.ListenPort=10502
-
+        
         ip = configparser.ConfigParser()
         ip.read("hyper-rec.ini")
 
@@ -148,6 +141,8 @@ class HyperRecGUI(QMainWindow):
         self.hydeck1_label=ip.get('DECK','hydeck1_label')
         self.hydeck2_label=ip.get('DECK','hydeck2_label')
         self.hydeck3_label=ip.get('DECK','hydeck3_label')
+
+        self.clip_duration=int(ip.get('CLIP','clip_duration_minutes'))
         
 #        self.ID2GB = {
 #            'clipGB':'SciCam',

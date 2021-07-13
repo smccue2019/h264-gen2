@@ -62,7 +62,7 @@ class UDPreceiver(QDialog):
     def parseJDS(self, jdspkt):
 # "JDS 2012/04/13 16:52:39 JAS2 11.6877602 -58.5421899 851.68 6020.31 0.0 -3.2 244.02 1327.99 0.81 24356.0 -0.5."
 
-#        print(jdspkt)
+        print(jdspkt)
         jdspkt.rstrip('\n')
         jdsfields  = jdspkt.split(" ")
         pktid = jdsfields[0]
@@ -110,10 +110,10 @@ class datagram2packetID():
     def identify_datagram(self):
 
         if self.o.match(self.datagram):
- #           print("ODR")
+            print("ODR")
             return('ODR')
         elif self.j.match(self.datagram):
- #           print("JDS")
+            print("JDS")
             return('JDS')
         elif self.c.match(self.datagram):
             return('CSV')
