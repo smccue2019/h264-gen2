@@ -36,12 +36,21 @@ class Hyperdeck_driver(QThread):
         # QTimer wants milliseconds
         # Calculated from clip_duration so that deck close and open
         # delay can be accounted. Early tests suggest one second works.
+        #
+        # Until I get a better handle on synchronizing the three recorders,
+        # disablie clipping. Indicate this by setting the clip duration in the
+        # ini file to zero "0".
 
-        self.close2open_delay = 2.0
-        self.duration4deck=( 1000 *( ((clip_duration - 1)*60) + (60 - self.close2open_delay) ) )
-
-        self.clip_timer = QTimer()
-        self.clip_timer.timeout.connect(self.at_clip_timeout)
+        self.clipping = True
+        if (clip_duration == 0):
+            self.clipping = False
+            print("No clipping will be imposed")
+        else:
+            self.close2open_delay = 2.0
+            self.duration4deck=( 1000 *( ((clip_duration - 1)*60) + (60 - self.close2open_delay) ) )
+            
+            self.clip_timer = QTimer()
+            self.clip_timer.timeout.connect(self.at_clip_timeout)
 
         self.status_update_interval_secs = 10;
         self.status_update_timer = QTimer()
@@ -63,13 +72,15 @@ class Hyperdeck_driver(QThread):
         record_cmd = ('record: name:' + self.camoutfile)
         self.ok2go, response=self.cmd_to_deck(record_cmd)
         if response:
-            logging.info(systimef() + " " + record_cmd + "\n"  + response)
+            logging.info(systimef() + " " + record_cmd + "\n"  + str(response))
         elif self.ok2go and not response:
             print("Got an OK but no response from record cmd")
         else:
             print(self.camera_name + " deck did not respond to record command")
-        self.clip_timer.start(self.duration4deck)
-        self.new_clip.emit(self.camoutfile)
+
+        if self.clipping:
+            self.clip_timer.start(self.duration4deck)
+            self.new_clip.emit(self.camoutfile)
 
     def restart_clip(self):
         self.gen_outfilename()  # generates self.clipname
@@ -91,9 +102,10 @@ class Hyperdeck_driver(QThread):
         else:
             print(self.camera_name + " deck did not respond to stop command")
 
-        self.clip_timer.stop()
-        logging.info(systimef() + " stop " + self.camera_name + " " + response) 
-        self.clip_closed.emit(systime())
+        if self.clipping:
+            self.clip_timer.stop()
+            logging.info(systimef() + " stop " + self.camera_name + " " + str(response)) 
+            self.clip_closed.emit(systime())
 
 
         if ( self.ok2go  and self.isInitiated() == True ):

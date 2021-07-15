@@ -29,7 +29,8 @@ class HyperRecGUI(QMainWindow):
         self.do_init(inifname)
 
         # Allow simulate of UDP messges for debugging
-        simulate_udp = False
+        # Normal operation, set simulate_udp to False 
+        simulate_udp = True
         
         # Invoke classes for ingesting UDP broadcasts and writing subtitles
         # UDP2subtitle both logs subtitles to a file and generates
@@ -83,7 +84,7 @@ class HyperRecGUI(QMainWindow):
         self.ui.clipGB_2_label.setText("New clip started " + clipname )
 
     def on_deck3_clip_closed(self, clipname):
-        self.subtitleGen.stop_logging()
+        #self.subtitleGen.stop_logging()
         self.ui.clipGB_3_label.setText("Clip " + clipname + "closed at " + systime() )
 
     def on_new_deck3_clip(self, clipname):
