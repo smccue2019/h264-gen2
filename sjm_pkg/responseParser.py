@@ -12,6 +12,8 @@ class responseParser(QObject):
         self.error_code = 0
         self.raw_response = raw_response
         self.classify()
+
+        print(raw_response)
         
     def classify(self):
         self.isRecording = False
@@ -26,8 +28,10 @@ class responseParser(QObject):
 
         # Every response includes four lines of a type '500' stanza. Remove these and
         # handle the stanza that follows.
-        firstline = response_lines[4]
-        self.response_code = int(firstline.split(' ', 1)[0])
+        self.firstline = response_lines[4]
+        self.response_code = int(self.firstline.split(' ', 1)[0])
+        self.response_comment1 = self.firstline.split(' ', 1)[1]
+
         try:
             secondline = response_lines[5]
             if self.response_code == 208:
@@ -36,6 +40,9 @@ class responseParser(QObject):
                     self.isRecording = True
                 elif status == 'idle':
                     self.isIdle = True
+            elif self.response_code == 200:
+                if self.response_comment1 == 'ok':
+                    self.ok2proceed = True
         except:
             print("Didn't find or couldn't parse second line")
         
@@ -58,8 +65,15 @@ class responseParser(QObject):
         return self.error_code
 
     def getResponse(self):
-        return str(self.cleaned_response[0] + "\n" + self.cleaned_response[1])
+        r = str(self.cleaned_response[0] + "\n" + self.cleaned_response[1])
+        if r == None:
+            r = "Missing response"
+        else:
+            # r = str(self.cleaned_response[0] + "\n" + self.cleaned_response[1])
+            r = self.firstline
 
+        return r
+    
     def getRecordingState(self):
         return self.isRecording
 
