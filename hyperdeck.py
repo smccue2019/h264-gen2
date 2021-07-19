@@ -16,17 +16,20 @@ class Hyperdeck_driver(QThread):
         self.deck_port = 9993
         self.camera_name = camera_name
 
+        print (camera_name + " clip duration is " + str(clip_duration))
         myloggername = ("decks_" + systimeNozz() + ".log")
         logging.basicConfig(filename=myloggername, level=logging.DEBUG)
 
         self.initiated = False
-        self.busy = False
-        self.Recording = False
+#        self.rp_busy = False
+#        self.Recording = False
         self.ok2go = False
-        self.response = ""
+#        self.response = ""
 
-        self.ok2go, response=self.cmd_to_deck('configuration')
+        (self.ok2go, response) = self.cmd_to_deck('configuration')
 
+        print("self.ok2go is " + str(self.ok2go))
+        
         if response:
             logging.info(systimef() + " " + self.camera_name + " " + response) 
         else:
@@ -41,11 +44,11 @@ class Hyperdeck_driver(QThread):
         # disablie clipping. Indicate this by setting the clip duration in the
         # ini file to zero "0".
 
-        self.clipping = True
         if (clip_duration == 0):
             self.clipping = False
             print("No clipping will be imposed")
         else:
+            self.clipping = True
             self.close2open_delay = 2.0
             self.duration4deck=( 1000 *( ((clip_duration - 1)*60) + (60 - self.close2open_delay) ) )
             
@@ -70,11 +73,13 @@ class Hyperdeck_driver(QThread):
     def start_new_clip(self):
         self.gen_outfilename()  # generates self.clipname
         record_cmd = ('record: name:' + self.camoutfile)
-        self.ok2go, response=self.cmd_to_deck(record_cmd)
+        (self.ok2go, response)=self.cmd_to_deck(record_cmd)
+        print("self.ok2go is " + str(self.ok2go))
         if response:
-            logging.info(systimef() + " " + record_cmd + "\n"  + str(response))
+            logging.info(self.camera_name + systimef() + " " + record_cmd + "\n"  + str(response))
+            print(self.camera_name + systimef() + " " + record_cmd + "\n"  + str(response))
         elif self.ok2go and not response:
-            print("Got an OK but no response from record cmd")
+            print(self.camera_name + "Got an OK but no response from record cmd")
         else:
             print(self.camera_name + " deck did not respond to record command")
 
@@ -85,20 +90,22 @@ class Hyperdeck_driver(QThread):
     def restart_clip(self):
         self.gen_outfilename()  # generates self.clipname
         record_cmd = ('record: name:' + self.camoutfile)
-        self.ok2go, response=self.cmd_to_deck(record_cmd)
+        (self.ok2go, response)=self.cmd_to_deck(record_cmd)
+        print("self.ok2go is " + str(self.ok2go))
         if response:
             logging.info(systimef() + " " + record_cmd + "\n"  + str(response))
         elif self.ok2go and not response:
-            print("Got an OK but no response from record cmd")
+            print(self.camera_name + "Got an OK but no response from record cmd")
         else:
             print(self.camera_name + " deck did not respond to record command")
        
     def stop_clip(self):
-        self.ok2go, response = self.cmd_to_deck('stop')
+        (self.ok2go, response) = self.cmd_to_deck('stop')
+        print("self.ok2go is " + str(self.ok2go))
         if response:
             logging.info(systimef() + "STOP\n"  + response)
         elif self.ok2go and not response:
-            print("Got an OK but no response from stop cmd")
+            print(self.camera_name + "Got an OK but no response from stop cmd")
         else:
             print(self.camera_name + " deck did not respond to stop command")
 
@@ -110,36 +117,45 @@ class Hyperdeck_driver(QThread):
 
         if ( self.ok2go  and self.isInitiated() == True ):
             QTimer.singleShot((1000.0 * self.close2open_delay),self.start_new_clip)  
-            #self.start_new_clip()
+            self.start_new_clip()
 
+    def on_rp_status(self,busy_boolean):
+        if busy_boolean:
+            self.rp_busy = True
+            print("Respond parser busy")
+        else:
+            self.rp_busy = False
+            print("Respond parser noi longer busy")
+            
     def cmd_to_deck(self, cmd):
-        if self.busy == False:
-            self.busy = True
-
+#        if self.rp_busy == False:
+    
             if (cmd == 'transport info'):
-                print("Transport info status requested")
+                #print("Transport info status requested")
                 raw_response = self.mynetcat(cmd)
                 if (raw_response):
                     rp = responseParser(raw_response)
-                    self.busy = False
+                    rp.rp_status.connect(self.on_rp_status)
+
                     if self.isInitiated():
                       if rp.getRecordingState() == True:
-                          print("Recording requested and ON")
-                          return(True, "Recording requested and ON")
+                          print(self.camera_name + " OK: Initiated and ON")
+                          return(True, "OK: Initiated and ON")
                       else:
-                          print("ERROR: Recording requested and OFF")
-                          return(False, "ERROR: Recording requested and OFF")
+                          print(self.camera_name + " ERROR: Recording requested and OFF")
+                          return(False, "ERROR: Initiated and OFF")
                     else:
                       if rp.getRecordingState() == True:
-                          print("ERROR: Recording NOT initiated and ON")
-                          return(False, "ERROR: Recording NOT initiated and ON")
+                          print(self.camera_name + " ERROR: NOT initiated and ON")
+                          return(False, "ERROR: NOT initiated and ON")
                       else:
-                          print("Recording not initiated and OFF")
-                          return(False, "Recording not initiated and OFF")
+                          print("OK: not initiated and OFF")
+                          return(False, "OK: not initiated and OFF")
                         
             else:
                 raw_response = self.mynetcat(cmd)
-                self.busy = False
+                #print(raw_response)
+                #self.busy = False
                 rp=responseParser(raw_response)
                 ok_or_not = rp.isOK2proceed()
                 if ok_or_not:
@@ -148,6 +164,7 @@ class Hyperdeck_driver(QThread):
                     return (ok_or_not, r)
                 else:
                     e = rp.getErrorCode()
+                    print(e)
                     return (ok_or_not, e)
         
     def mynetcat(self, content):
