@@ -9,10 +9,7 @@ class UDP2subtitle(QObject):
 
     new_captions = pyqtSignal(str,name = 'new_captions')
     new_meta = pyqtSignal(str,str,str,str,name = 'new_meta')
-
-    # SJM 2/2021 New signal to indicate that an ODR has been received,
-    # and therefore cruise and lowering info can be used for outfiles.
-    # odr_recv_signal = pyqtSignal(bool, name = 'odr_received')
+    lowID = pyqtSignal(str, name = 'lowID')
 
     def __init__(self):
         super(UDP2subtitle, self).__init__()        
@@ -39,6 +36,8 @@ class UDP2subtitle(QObject):
         self.depth =  0.0
         self.altitude =  0.0
 
+        self.alt_str = "N/A" # Intro'ed by DPA record
+        
         self.prior_cruiseid = "Unknown"
         self.prior_loweringid = "Unknown"
 
@@ -48,8 +47,6 @@ class UDP2subtitle(QObject):
         self.write2srtTimer.timeout.connect(self.on_write2srt_timeout)
 
         self.initiated = False
-        self.busy = False
-
 
     def start_logging(self):
         self.srt_counter=0
@@ -60,16 +57,15 @@ class UDP2subtitle(QObject):
         self.initiated = True
 
     def on_write2srt_timeout(self):
-        if not self.busy:
-#            self.out2log()
-            self.out2srt()
+        self.out2log()
+        self.out2srt()
 
-    # def out2log(self):
-    #     self.logstream << systime() << "\n" 
-    #     self.logstream << self.metastr1 << "\n"
-    #     self.logstream << self.metastr2 << "\n"
-    #     self.logstream << self.metastr3 << "\n"
-    #     self.logstream << self.metastr4 << "\n"
+    def out2log(self):
+        self.logstream << systime() << "\n" 
+        self.logstream << self.metastr1 << "\n"
+        self.logstream << self.metastr2 << "\n"
+        self.logstream << self.metastr3 << "\n"
+        self.logstream << self.metastr4 << "\n"
 
     def out2srt(self):
         self.srt_counter += 1
@@ -98,14 +94,32 @@ class UDP2subtitle(QObject):
         self.srtstream4 << sstr << "-->" << estr << "\n"
         self.srtstream4 << self.metastr4 << "\n"
         self.srtstream4 << "\n"
+
+    def updateDPAmsg(self, DPAmessage):
+        # This one handles full record for logs
+        # Bottom lock flag has no effect.
+        # Might be superfluous, with updateDPAlck preferred
+        #self.update_metastrings()
+        pass
+    
+    def updateDPAlck(self, dvl_alt, lockflag):
+        # This one reacts to bottom lock status
+        if lockflag:
+            # Can be used for autorecording
+            self.alt_str = ("%4.1f") % (dvl_alt)
+        else:
+            self.alt_str = "N/A"
+
+        self.update_metastrings()
         
     def updateODR(self, ODRmessage):
         (odate,otime,olat,olon,utmz,cruiseID,lowID) \
                                 = self.parseODR(ODRmessage)
 
         # SJM 2/2021 Add outpath based on cruise ID and lowering ID
-        if ( (self.cruiseid != "Unknown") and (self.loweringid != "Unknown") ):
-#            self.odr_recv_signal.emit(True)
+
+        if ( (self.cruiseid != self.prior_cruiseid) or \
+             (self.loweringid != self.prior_loweringid) ):
             self.prior_cruiseid = cruiseID
             self.prior_loweringid = lowID
             self.odr_received = True
@@ -118,7 +132,8 @@ class UDP2subtitle(QObject):
         self.cruiseid = cruiseID
         self.loweringid = lowID
         self.update_metastrings()
-
+        self.lowID.emit(self.loweringid)
+            
     def updateJDS(self, JDSmessage):
         (veh,datestr,timestr,lat_deg,lon_deg,X_local,Y_local,oct_roll, \
              oct_pitch,oct_heading,depth, altitude)=self.parseJDS(JDSmessage)
@@ -138,11 +153,11 @@ class UDP2subtitle(QObject):
         
     def update_metastrings(self):
         st_jds=removeZZfromJDStime(self.jdstime)
-        self.metastr1="%s %9.5f/%10.5f h=%d d=%d" % (st_jds, \
+        self.metastr1="%s %9.5f/%10.5f h=%d d=%d a=%s" % (st_jds, \
                                                       self.latitude_deg,\
                                                       self.longitude_deg,\
                                                       self.octans_heading,\
-                                                      self.depth)
+                                                      self.depth, self.alt_str)
         self.metastr2="veh=%s cr=%s lID=%s dt=%s"% (self.veh,self.cruiseid, \
                                        self.loweringid,self.jdsdate)
         self.metastr3="x=%10.3f y=%10.3f r=%8.3f p=%8.3f a=%8.3f" % (self.X_local, \
@@ -152,49 +167,42 @@ class UDP2subtitle(QObject):
                                                            self.altitude)
         self.metastr4 = "orglt=%10.5f orgln=%10.5f utm=%d" % (self.orglat,self.orglon,self.utm)
 
-        self.new_meta.emit(self.metastr1, \
-                               self.metastr2, \
-                               self.metastr3, \
-                               self.metastr4)
-
-#        print(self.metastr1+"\n"+self.metastr2+"\n"+self.metastr3+"\n"+self.metastr4+"\n")
-
     def new_clip(self):
         self.start_msec = epoch_msecs()
         self.srt_counter = 0
         self.gen_new_outnames()
         
-        self.busy = True
-#        self.logfileh.close()
+        self.close_outfies()
+        self.open_outfiles()
+
+    def close_oufiles(self):
+        self.logfileh.close()
         self.srtfile1h.close()
         self.srtfile2h.close()
         self.srtfile3h.close()
         self.srtfile4h.close()
-        self.busy = False
         
-        self.open_outfiles()
-
     def open_outfiles(self):
-        print("udp2subtitle.py: Opening files")
         self.busy = True
-        # 
-        # self.logfileh.open(QFile.WriteOnly)
-        # 
-        # self.srtfile1h.open(QFile.WriteOnly)
-        # self.srtfile2h = QFile(self.srtfile2)
-        # self.srtfile2h.open(QFile.WriteOnly)
-        # self.srtfile3h = QFile(self.srtfile3)
-        # self.srtfile3h.open(QFile.WriteOnly)
-        # self.srtfile4h = QFile(self.srtfile4)
-        # self.srtfile4h.open(QFile.WriteOnly)
+
+        #self.logfileh = QFile(self.logfile)
+        #self.logfileh.open(QFile.WriteOnly)
+        #self.srtfile1h = QFile(self.srtfile1)
+        #self.srtfile1h.open(QFile.WriteOnly)
+        #self.srtfile2h = QFile(self.srtfile2)
+        #self.srtfile2h.open(QFile.WriteOnly)
+        #self.srtfile3h = QFile(self.srtfile3)
+        #self.srtfile3h.open(QFile.WriteOnly)
+        #self.srtfile4h = QFile(self.srtfile4)
+        #self.srtfile4h.open(QFile.WriteOnly)
         
 
-        # self.logfileh = QFile(self.logfile)
-        # if not self.logfileh.open(QFile.WriteOnly):
-        #     QMessageBox.warning(self, \
-        #                             self.tr \
-        #                             ("Cant open file %1:\n%2").arg \
-        #                            (self.logfile).arg(file.errorString()))
+        self.logfileh = QFile(self.logfile)
+        if not self.logfileh.open(QFile.WriteOnly):
+            QMessageBox.warning(self, \
+                                    self.tr \
+                                    ("Cant open file %1:\n%2").arg \
+                                   (self.logfile).arg(file.errorString()))
 
         self.srtfile1h = QFile(self.srtfile1)
         if not self.srtfile1h.open(QFile.WriteOnly):
@@ -230,39 +238,31 @@ class UDP2subtitle(QObject):
         self.srtstream2 = QTextStream(self.srtfile2h)
         self.srtstream3 = QTextStream(self.srtfile3h)
         self.srtstream4 = QTextStream(self.srtfile4h)
-        self.busy = False
+        self.logstream = QTextStream(self.logfileh)
+
+        self.new_meta.emit(self.srtfile1,self.srtfile2,self.srtfile3,self.srtfile4)
         
     def isInitiated(self):
         return self.initiated
 
-#    def get_logfilename(self):
-#        return self.logfile
+    def get_logfilename(self):
+        return self.logfile
 
     def gen_new_outnames(self):
-        # SJM 2/2021 Add outpaths based on cruise ID and lowering ID
-#        if ( (self.cruiseid != self.prior_cruiseid) or (self.loweringid != self.prior_loweringid) ):
-#        srtoutpath = ("/h264Data/Subtitles/"+self.cruiseid+"/"+self.loweringid.rstrip())
-#        txtoutpath = ("/h264Data/Metadata/"+self.cruiseid+"/"+self.loweringid.rstrip())
         srtoutpath = ("./Subtitles/"+self.cruiseid+"/"+self.loweringid.rstrip())
         txtoutpath = ("./Metadata/"+self.cruiseid+"/"+self.loweringid.rstrip())
 
-        print(srtoutpath)
-        print(txtoutpath)
-        
         if not os.path.isdir(srtoutpath):
             pathlib.Path(srtoutpath).mkdir(parents=True, exist_ok=True)
             pathlib.Path(txtoutpath).mkdir(parents=True, exist_ok=True)
-            #os.mkdir(srtoutpath, 0o0755)
-            #os.mkdir(txtoutpath, 0o0755)
 
         nowstr = systime()
-        print(nowstr)
-#        self.logfile = '%s/%s%s' % (txtoutpath, nowstr, '.txt')
+        self.logfile = '%s/%s%s' % (txtoutpath, nowstr, '.txt')
         self.srtfile1 = '%s/%s%s' % (srtoutpath, nowstr, '_st1.srt')
         self.srtfile2 = '%s/%s%s' % (srtoutpath, nowstr, '_st2.srt')
         self.srtfile3 = '%s/%s%s' % (srtoutpath, nowstr, '_st3.srt')
         self.srtfile4 = '%s/%s%s' % (srtoutpath, nowstr, '_st4.srt')
-
+        
     def stop_logging(self):
 
         try:

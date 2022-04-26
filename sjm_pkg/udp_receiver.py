@@ -13,7 +13,8 @@ class UDPreceiver(QDialog):
     new_jds = pyqtSignal(str, name = 'new_jds')
     new_odr = pyqtSignal(str, name = 'new_odr')
     new_csv = pyqtSignal(str, name = 'new_csv')
-    new_pwhdop = pyqtSignal(float, int, name = 'new_pwhdop')
+    new_dpa = pyqtSignal(str, name = 'new_dpa')
+    new_dpa_locked = pyqtSignal(float, int, name = 'new_dpa_locked')
 
     def __init__(self, listen_port, parent=None):
         super(UDPreceiver, self).__init__(parent)
@@ -38,26 +39,27 @@ class UDPreceiver(QDialog):
                 self.new_odr.emit(udpstr)
             elif id_string == 'CSV':
                 self.new_csv.emit(udpstr)
-            elif id_string == 'PWHDOP':
-                dop_alt=self.parsePWHDOP(udpstr)
+            elif id_string == 'DPA':
+                self.new_dpa.emit(udpstr)
+                (dvl_alt, flag) = self.parseDPA(udpstr)
             else:
                 # Other packets don't matter
                 pass
 
-    def parsePWHDOP(self,pwhdoppkt):
-        pwhdoppkt.rstrip('\n')
-        pwhdop_fields = pwhdoppkt.split(",")
+    def parseDPA(self,dpapkt):
+        dpapkt.rstrip('\n')
+        dpa_fields = dpapkt.split(" ")
         try:
-            dop_alt = float(pwhdop_fields[6])
+            dop_alt = float(dpa_fields[4])
         except ValueError:
             dop_alt = nan
         try:
-            lock_status = int(pwhdop_fields[10])
+            bottom_lock_status = int(dpa_fields[5])
         except ValueError:
             lock_status = nan
- 
-        self.new_pwhdop.emit(dop_alt, lock_status)
-        return dop_alt, lock_status
+            
+        self.new_dpa_locked.emit(dop_alt, bottom_lock_status)
+        return (dop_alt, bottom_lock_status)
 
     def parseJDS(self, jdspkt):
 # "JDS 2012/04/13 16:52:39 JAS2 11.6877602 -58.5421899 851.68 6020.31 0.0 -3.2 244.02 1327.99 0.81 24356.0 -0.5."
@@ -90,8 +92,6 @@ class UDPreceiver(QDialog):
         except ValueError:
             altitude = nan
 
-# SJM Sept 2015 
-#        self.new_altitude.emit(altitude, depth)
         self.new_altitude.emit(altitude)
         self.new_jds.emit(jdspkt)
 
@@ -105,20 +105,18 @@ class datagram2packetID():
         self.o = re.compile('^ODR')
         self.j = re.compile('^JDS')
         self.c = re.compile('^CSV')
-        self.d = re.compile('^\$PWHDOP')
+        self.d = re.compile('^DPA')
 
     def identify_datagram(self):
 
         if self.o.match(self.datagram):
- #           print("ODR")
             return('ODR')
         elif self.j.match(self.datagram):
- #           print("JDS")
             return('JDS')
         elif self.c.match(self.datagram):
             return('CSV')
         elif self.d.match(self.datagram):
-            return('PWHDOP')
+            return('DPA')
         else:
             #print("Unidentified datagram")
             return None

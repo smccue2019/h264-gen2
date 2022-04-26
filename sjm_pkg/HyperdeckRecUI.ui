@@ -6,19 +6,28 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>804</width>
-    <height>600</height>
+    <width>876</width>
+    <height>780</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>HyperdeckRecorderUI</string>
+  </property>
+  <property name="autoFillBackground">
+   <bool>false</bool>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">background-color: rgb(244, 255, 255);</string>
+  </property>
+  <property name="locale">
+   <locale language="English" country="UnitedStates"/>
   </property>
   <widget class="QWidget" name="centralwidget">
    <widget class="QPushButton" name="quitButton">
     <property name="geometry">
      <rect>
       <x>690</x>
-      <y>500</y>
+      <y>700</y>
       <width>89</width>
       <height>25</height>
      </rect>
@@ -31,7 +40,7 @@
     <property name="geometry">
      <rect>
       <x>690</x>
-      <y>100</y>
+      <y>30</y>
       <width>89</width>
       <height>25</height>
      </rect>
@@ -44,7 +53,7 @@
     <property name="geometry">
      <rect>
       <x>690</x>
-      <y>150</y>
+      <y>70</y>
       <width>89</width>
       <height>25</height>
      </rect>
@@ -58,7 +67,7 @@
      <rect>
       <x>60</x>
       <y>30</y>
-      <width>300</width>
+      <width>150</width>
       <height>30</height>
      </rect>
     </property>
@@ -72,7 +81,7 @@
    <widget class="QLabel" name="JDSflash">
     <property name="geometry">
      <rect>
-      <x>450</x>
+      <x>400</x>
       <y>30</y>
       <width>30</width>
       <height>30</height>
@@ -94,7 +103,7 @@
    <widget class="QLabel" name="ODRflash">
     <property name="geometry">
      <rect>
-      <x>510</x>
+      <x>460</x>
       <y>30</y>
       <width>30</width>
       <height>30</height>
@@ -118,30 +127,30 @@
      <rect>
       <x>60</x>
       <y>80</y>
-      <width>590</width>
+      <width>520</width>
       <height>140</height>
      </rect>
     </property>
     <property name="title">
      <string>clipGB</string>
     </property>
-    <widget class="QLabel" name="clipGB_label">
+    <widget class="QPlainTextEdit" name="clipGB_pte">
      <property name="geometry">
       <rect>
        <x>10</x>
        <y>30</y>
-       <width>570</width>
+       <width>500</width>
        <height>100</height>
       </rect>
      </property>
-     <property name="frameShape">
-      <enum>QFrame::StyledPanel</enum>
+     <property name="autoFillBackground">
+      <bool>true</bool>
      </property>
-     <property name="frameShadow">
-      <enum>QFrame::Sunken</enum>
+     <property name="readOnly">
+      <bool>false</bool>
      </property>
-     <property name="text">
-      <string>clipDisplay</string>
+     <property name="placeholderText">
+      <string extracomment="clipGB1_pte"/>
      </property>
     </widget>
    </widget>
@@ -150,30 +159,21 @@
      <rect>
       <x>60</x>
       <y>235</y>
-      <width>590</width>
+      <width>520</width>
       <height>140</height>
      </rect>
     </property>
     <property name="title">
      <string>clipGB_2</string>
     </property>
-    <widget class="QLabel" name="clipGB_2_label">
+    <widget class="QPlainTextEdit" name="clipGB_2pte">
      <property name="geometry">
       <rect>
        <x>10</x>
        <y>30</y>
-       <width>570</width>
+       <width>500</width>
        <height>100</height>
       </rect>
-     </property>
-     <property name="frameShape">
-      <enum>QFrame::StyledPanel</enum>
-     </property>
-     <property name="frameShadow">
-      <enum>QFrame::Sunken</enum>
-     </property>
-     <property name="text">
-      <string>clipDisplay</string>
      </property>
     </widget>
    </widget>
@@ -182,38 +182,29 @@
      <rect>
       <x>60</x>
       <y>390</y>
-      <width>590</width>
+      <width>520</width>
       <height>140</height>
      </rect>
     </property>
     <property name="title">
      <string>clipGB_3</string>
     </property>
-    <widget class="QLabel" name="clipGB_3_label">
+    <widget class="QPlainTextEdit" name="clipGB_3pte">
      <property name="geometry">
       <rect>
        <x>10</x>
        <y>30</y>
-       <width>570</width>
+       <width>500</width>
        <height>100</height>
       </rect>
-     </property>
-     <property name="frameShape">
-      <enum>QFrame::StyledPanel</enum>
-     </property>
-     <property name="frameShadow">
-      <enum>QFrame::Sunken</enum>
-     </property>
-     <property name="text">
-      <string>clipDisplay</string>
      </property>
     </widget>
    </widget>
    <widget class="QGroupBox" name="idleIcon">
     <property name="geometry">
      <rect>
-      <x>690</x>
-      <y>30</y>
+      <x>600</x>
+      <y>15</y>
       <width>40</width>
       <height>40</height>
      </rect>
@@ -235,21 +226,186 @@
      </property>
     </widget>
    </widget>
-   <widget class="QLabel" name="clipTimeLabel">
+   <widget class="QLabel" name="LowIDlabel">
     <property name="geometry">
      <rect>
-      <x>690</x>
-      <y>290</y>
-      <width>89</width>
+      <x>270</x>
+      <y>30</y>
+      <width>60</width>
       <height>30</height>
      </rect>
     </property>
+    <property name="font">
+     <font>
+      <weight>75</weight>
+      <bold>true</bold>
+     </font>
+    </property>
+    <property name="frameShape">
+     <enum>QFrame::Box</enum>
+    </property>
     <property name="text">
-     <string>clipTime</string>
+     <string>LowID</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignCenter</set>
+    </property>
+   </widget>
+   <widget class="QLabel" name="DPAflash">
+    <property name="geometry">
+     <rect>
+      <x>520</x>
+      <y>30</y>
+      <width>30</width>
+      <height>30</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>12</pointsize>
+      <weight>75</weight>
+      <bold>true</bold>
+     </font>
+    </property>
+    <property name="frameShape">
+     <enum>QFrame::Box</enum>
+    </property>
+    <property name="text">
+     <string>D</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignCenter</set>
+    </property>
+   </widget>
+   <widget class="QGroupBox" name="srtGB">
+    <property name="geometry">
+     <rect>
+      <x>60</x>
+      <y>545</y>
+      <width>520</width>
+      <height>140</height>
+     </rect>
+    </property>
+    <property name="title">
+     <string>Subtitle Files Log</string>
+    </property>
+    <widget class="QPlainTextEdit" name="srtGB_pte">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>30</y>
+       <width>500</width>
+       <height>100</height>
+      </rect>
+     </property>
+    </widget>
+   </widget>
+   <widget class="QGroupBox" name="clipTimeGB">
+    <property name="geometry">
+     <rect>
+      <x>660</x>
+      <y>570</y>
+      <width>120</width>
+      <height>80</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>8</pointsize>
+     </font>
+    </property>
+    <property name="title">
+     <string>Remaining Clip Time</string>
+    </property>
+    <widget class="QLabel" name="clipTimeLabel">
+     <property name="geometry">
+      <rect>
+       <x>0</x>
+       <y>30</y>
+       <width>89</width>
+       <height>30</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>clipTime</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignCenter</set>
+     </property>
+    </widget>
+   </widget>
+   <widget class="QPlainTextEdit" name="deck1_status_pte">
+    <property name="geometry">
+     <rect>
+      <x>610</x>
+      <y>105</y>
+      <width>170</width>
+      <height>110</height>
+     </rect>
+    </property>
+    <property name="documentTitle">
+     <string>Deck1 Status</string>
+    </property>
+    <property name="readOnly">
+     <bool>true</bool>
+    </property>
+    <property name="overwriteMode">
+     <bool>true</bool>
+    </property>
+    <property name="placeholderText">
+     <string extracomment="Deck1 status"/>
+    </property>
+   </widget>
+   <widget class="QPlainTextEdit" name="deck2_status_pte">
+    <property name="geometry">
+     <rect>
+      <x>610</x>
+      <y>260</y>
+      <width>170</width>
+      <height>110</height>
+     </rect>
+    </property>
+    <property name="documentTitle">
+     <string>Deck2 Status</string>
+    </property>
+    <property name="placeholderText">
+     <string extracomment="Deck2 status"/>
+    </property>
+   </widget>
+   <widget class="QPlainTextEdit" name="deck3_status_pte">
+    <property name="geometry">
+     <rect>
+      <x>610</x>
+      <y>415</y>
+      <width>170</width>
+      <height>110</height>
+     </rect>
+    </property>
+    <property name="documentTitle">
+     <string>Deck3 Status</string>
+    </property>
+    <property name="readOnly">
+     <bool>true</bool>
+    </property>
+    <property name="overwriteMode">
+     <bool>true</bool>
+    </property>
+    <property name="placeholderText">
+     <string extracomment="Deck1 status"/>
     </property>
    </widget>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
+  <widget class="QMenuBar" name="menuBar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>876</width>
+     <height>20</height>
+    </rect>
+   </property>
+  </widget>
  </widget>
  <resources/>
  <connections/>

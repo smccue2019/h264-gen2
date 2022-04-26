@@ -71,3 +71,12 @@ def isDateTimeFormatZZZ(instr):
         return True
     else:
         return False
+
+def secs2ms(insecs):
+    inseci = int(insecs)
+    mins, secs = divmod(inseci, 60)
+
+    mymmss = "%2.2d:%2.2d" % (mins, secs)
+    return mymmss
+
+    

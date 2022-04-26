@@ -6,7 +6,7 @@ import sys
 import configparser
 from hyperdeck import Hyperdeck_driver
 from sjm_pkg.HyperdeckRecUI import Ui_MainWindow
-from sjm_pkg.time_routines import systime, systimef_s
+from sjm_pkg.time_routines import systime, systimef_s, secs2ms
 from sjm_pkg.udp_receiver import UDPreceiver
 from sjm_pkg.udp2subtitle import UDP2subtitle
 from sjm_pkg.sim_udp import JDS_generator, ODR_generator
@@ -30,34 +30,56 @@ class HyperRecGUI(QMainWindow):
 
         # Allow simulate of UDP messges for debugging
         # Normal operation, set simulate_udp to False 
-        simulate_udp = True
+        simulate_udp = False
         
         # Invoke classes for ingesting UDP broadcasts and writing subtitles
         # UDP2subtitle both logs subtitles to a file and generates
         # displayable strings. Three lines.
 
         self.subtitleGen = UDP2subtitle()
+        self.subtitleGen.lowID.connect(self.on_new_lowID)
+        self.subtitleGen.new_meta.connect(self.on_new_meta)
+        #self.subtitleGen.new_dpa_locked(self.update
+        
         self.meta_receiver=UDPreceiver(self.ListenPort)
+
         if (simulate_udp):
             self.jds_gen = JDS_generator()
             self.odr_gen = ODR_generator()
+            self.dpa_gen = DPA_generator()
             self.jds_gen.new_jds.connect(self.on_new_jds)
             self.odr_gen.new_odr.connect(self.on_new_odr)
+            self.odr_gen.new_dpa.connect(self.on_new_dpa)
         else:
             self.meta_receiver.new_jds.connect(self.on_new_jds) 
             self.meta_receiver.new_odr.connect(self.on_new_odr)
+            self.meta_receiver.new_dpa.connect(self.on_new_dpa)
+            self.meta_receiver.new_dpa_locked.connect(self.on_new_dpa)
+            
+        #self.meta_receiver.new_jds.connect(self.subtitleGen.updateJDS)
+        #self.meta_receiver.new_odr.connect(self.subtitleGen.updateODR)
+        #self.meta_receiver.new_dpa.connect(self.subtitleGen.updateDPA)
 
-        self.meta_receiver.new_jds.connect(self.subtitleGen.updateJDS)
-        self.meta_receiver.new_odr.connect(self.subtitleGen.updateODR)
-
-        self.deck1 = Hyperdeck_driver(self.hydeck1_IP, self.hydeck1_label, self.clip_duration)
+        self.deck1 = Hyperdeck_driver(self.hydeck1_IP, self.hydeck1_label, self.clip_duration)        
         self.deck2 = Hyperdeck_driver(self.hydeck2_IP, self.hydeck2_label, self.clip_duration)
         self.deck3 = Hyperdeck_driver(self.hydeck3_IP, self.hydeck3_label, self.clip_duration)
 
         self.deck1.deck_connected.connect(self.on_deck1_good_ping)
         self.deck2.deck_connected.connect(self.on_deck2_good_ping)
         self.deck3.deck_connected.connect(self.on_deck3_good_ping)
-        
+
+        self.deck1.new_msg.connect(self.on_deck1_new_msg)
+        self.deck2.new_msg.connect(self.on_deck2_new_msg)
+        self.deck3.new_msg.connect(self.on_deck3_new_msg)
+
+        self.deck1.new_status.connect(self.on_deck1_new_status)
+        self.deck2.new_status.connect(self.on_deck2_new_status)
+        self.deck3.new_status.connect(self.on_deck3_new_status)
+
+        self.deck1.new_slot_info.connect(self.on_deck1_new_slot_info)
+        self.deck2.new_slot_info.connect(self.on_deck2_new_slot_info)
+        self.deck3.new_slot_info.connect(self.on_deck3_new_slot_info)
+
         self.deck1.clip_closed.connect(self.on_deck1_clip_closed)
         self.deck1.new_clip.connect(self.on_new_deck1_clip)
         self.deck2.clip_closed.connect(self.on_deck2_clip_closed)
@@ -65,40 +87,106 @@ class HyperRecGUI(QMainWindow):
         self.deck3.clip_closed.connect(self.on_deck3_clip_closed)
         self.deck3.new_clip.connect(self.on_new_deck3_clip)
 
-    def on_deck1_clip_closed(self, clipname):
-        #self.subtitleGen.stop_logging()
-        self.ui.clipGB_label.setText("Clip " + clipname + "closed at " + systime() )
+    def on_new_meta(self, srt1, srt2, srt3, srt4):
+        self.ui.srtGB_pte.appendPlainText(systime() + " " + srt1 )
+        self.ui.srtGB_pte.appendPlainText(systime() + " " + srt2 )
+        self.ui.srtGB_pte.appendPlainText(systime() + " " + srt3 )
+        self.ui.srtGB_pte.appendPlainText(systime() + " " + srt4 )
+
+        self.clipTimeRemaining=(self.clip_minutes * 60)
+
+    def on_deck1_new_status(self, ts, tid):
+        # ts = transport status
+        # tid = transport info dictionasry
+        self.ui.deck1_status_pte.appendPlainText(ts + " mode" )
+        self.ui.deck1_status_pte.appendPlainText(tid['input video format'])
         
-    def on_new_deck1_clip(self, clipname):
-        #self.subtitleGen.start_logging()
-        self.cliptimecounter = 0
-        self.ui.clipGB_label.setText("New clip started " + clipname )
+    def on_deck2_new_status(self, ts, tid):
+        self.ui.deck2_status_pte.appendPlainText(ts + " mode" )
+        self.ui.deck2_status_pte.appendPlainText(tid['input video format'])
 
-    def on_deck2_clip_closed(self, clipname):
+    def on_deck3_new_status(self, ts, tid):
+        self.ui.deck3_status_pte.appendPlainText(ts + " mode" )
+        self.ui.deck3_status_pte.appendPlainText(tid['input video format'])
+
+    def on_deck1_new_slot_info(self, s1d, s2d):
+        # s1d = slot 1 status
+        # tid = slot 2 status
+        self.ui.deck1_status_pte.appendPlainText("SD1: " + s1d['status'])
+        s1_timeleft = secs2ms(s1d['recording time'])
+        self.ui.deck1_status_pte.appendPlainText("SD1: " + s1_timeleft + "s")
+        self.ui.deck1_status_pte.appendPlainText("SD2: " + s2d['status'])
+        s2_timeleft = secs2ms(s2d['recording time'])
+        self.ui.deck1_status_pte.appendPlainText("SD2: " + s2_timeleft + "s")
+
+    def on_deck2_new_slot_info(self, s1d, s2d):
+        # s1d = slot 1 status
+        # tid = slot 2 status
+        self.ui.deck2_status_pte.appendPlainText("SD1: " + s1d['status'])
+        s1_timeleft = secs2ms(s1d['recording time'])
+        self.ui.deck2_status_pte.appendPlainText("SD1: " + s1_timeleft + "s")
+        self.ui.deck2_status_pte.appendPlainText("SD2: " + s2d['status'])
+        s2_timeleft = secs2ms(s2d['recording time'])
+        self.ui.deck2_status_pte.appendPlainText("SD2: " + s2_timeleft + "s")
+
+    def on_deck3_new_slot_info(self, s1d, s2d):
+        # s1d = slot 1 status
+        # tid = slot 2 status
+        self.ui.deck3_status_pte.appendPlainText("SD1: " + s1d['status'])
+        s1_timeleft = secs2ms(s1d['recording time'])
+        self.ui.deck3_status_pte.appendPlainText("SD1: " + s1_timeleft + "s")
+        self.ui.deck3_status_pte.appendPlainText("SD2: " + s2d['status'])
+        s2_timeleft = secs2ms(s2d['recording time'])
+        self.ui.deck3_status_pte.appendPlainText("SD2: " + s2_timeleft + "s")
+
+    def on_deck1_new_msg(self, msg):
+        self.ui.clipGB_pte.appendPlainText(systime() + " MSG: " + msg + "\n" )
+
+    def on_deck2_new_msg(self, msg):
+        self.ui.clipGB_2pte.appendPlainText(systime() + " MSG: " + msg + "\n" )
+
+    def on_deck3_new_msg(self, msg):
+        self.ui.clipGB_3pte.appendPlainText(systime() + " MSG: " + msg + "\n" )
+
+    def on_deck1_clip_closed(self, cn):
         self.subtitleGen.stop_logging()
-        self.ui.clipGB_2_label.setText("Clip " + clipname + "closed at " + systime() )
-
-    def on_new_deck2_clip(self, clipname):
+        self.ui.clipGB_pte.appendPlainText(cn + " closed at " + systime() )
+        
+    def on_new_deck1_clip(self, cn):
         self.subtitleGen.start_logging()
-        self.cliptimecounter = 0
-        self.ui.clipGB_2_label.setText("New clip started " + clipname )
+        self.ui.clipGB_pte.appendPlainText("New clip started " + cn )
 
-    def on_deck3_clip_closed(self, clipname):
-        #self.subtitleGen.stop_logging()
-        self.ui.clipGB_3_label.setText("Clip " + clipname + "closed at " + systime() )
+    def on_deck2_clip_closed(self, cn):
+        self.ui.clipGB_2pte.appendPlainText(cn + " closed at " + systime() )
 
-    def on_new_deck3_clip(self, clipname):
-        #self.subtitleGen.start_logging()
-        self.cliptimecounter = 0
-        self.ui.clipGB_3_label.setText("New clip started " + clipname )
+    def on_new_deck2_clip(self, cn):
+        self.ui.clipGB_2pte.appendPlainText("New clip started " + cn )
+
+    def on_deck3_clip_closed(self, cn):
+        self.ui.clipGB_3pte.appendPlainText(cn + " closed at " + systime() )
+
+    def on_new_deck3_clip(self, cn):
+        self.ui.clipGB_3pte.appendPlainText("New clip started " + cn )
 
     def at_disp_systime_timeout(self):
         self.now = systime()
         self.now_f = systimef_s();
         self.ui.DateTimeDisp.setText(self.now_f)
 
+    def on_new_lowID(self, newlowID):
+        if newlowID != self.lowID:
+            self.lowID = newlowID
+            self.ui.LowIDlabel.setText(self.lowID.rstrip('\n'))
+
+    def on_new_dpa(self, new_dpa):
+        self.subtitleGen.updateDPAmsg(new_dpa)
+        self.ui.DPAflash.setStyleSheet("QLabel {background: green}")
+        self.dpaflashtimer.start(self.flash_on_duration)
+
+    def on_new_dpa_locked(self, new_dpal, flag):
+        self.subtitleGen.updateDPAlck(new_dpa, flag)
+
     def on_new_jds(self, new_jds):
-        #print(new_jds)
         self.subtitleGen.updateJDS(new_jds)
         self.ui.JDSflash.setStyleSheet("QLabel {background: green}")
         self.jdsflashtimer.start(self.flash_on_duration)
@@ -110,29 +198,38 @@ class HyperRecGUI(QMainWindow):
         self.ui.ODRflash.setStyleSheet("QLabel {background: green}")
         self.odrflashtimer.start(self.flash_on_duration)
 
+    def on_dpaflashtimer_timeout(self):
+        self.ui.DPAflash.setStyleSheet("QLabel {background: white}")
+    
     def on_jdsflashtimer_timeout(self):
         self.ui.JDSflash.setStyleSheet("QLabel {background: white}")
 
     def on_odrflashtimer_timeout(self):
         self.ui.ODRflash.setStyleSheet("QLabel {background: white}")
 
-    def on_deck1_good_ping(self, str):
-        self.ui.clipGB_label.setStyleSheet("QLabel {background: light green}")
+    def on_deck1_good_ping(self):
+        self.ui.clipGB.setObjectName("Deck1GB")
+        self.ui.clipGB.setStyleSheet("QGroupBox#Deck1GB { border: 1px solid green;}")
 
-    def on_deck2_good_ping(self, str):
-        self.ui.clipGB_2_label.setStyleSheet("QLabel {background: light green}")
+    def on_deck2_good_ping(self):
+        self.ui.clipGB_2.setObjectName("Deck2GB")
+        self.ui.clipGB_2.setStyleSheet("QGroupBox#Deck2GB { border: 1px solid green;}")
 
-    def on_deck3_good_ping(self, str):
-        self.ui.clipGB_3_label.setStyleSheet("QLabel {background: light green}")
+    def on_deck3_good_ping(self):
+        self.ui.clipGB_3.setObjectName("Deck3GB")
+        self.ui.clipGB_3.setStyleSheet("QGroupBox#Deck3GB { border: 1px solid green;}")
 
     def at_cliptimerheartbeat_timeout(self):
-        self.cliptimecounter += 1
-        self.ui.clipTimeLabel.setText(str(self.cliptimecounter))
+        self.clipTimeRemaining -= 1
+        ctr = secs2ms(self.clipTimeRemaining)
+        self.ui.clipTimeLabel.setText(ctr)
         
     def do_init(self, inifname):
-        
+
+        self.lowID=""
+
         ip = configparser.ConfigParser()
-        ip.read("hyper-rec.ini")
+        ip.read(inifname)
 
         self.hydeck1_IP=ip.get('NETWORK','hydeck1_IP')
         self.hydeck2_IP=ip.get('NETWORK','hydeck2_IP')
@@ -143,14 +240,10 @@ class HyperRecGUI(QMainWindow):
         self.hydeck2_label=ip.get('DECK','hydeck2_label')
         self.hydeck3_label=ip.get('DECK','hydeck3_label')
 
-        self.clip_duration=int(ip.get('CLIP','clip_duration_minutes'))
+        self.clip_minutes = int(ip.get('CLIP','clip_duration_minutes'))
+        self.clip_duration = self.clip_minutes * 60 * 1000
+        self.clipTimeRemaining=(self.clip_minutes * 60)
         
-#        self.ID2GB = {
-#            'clipGB':'SciCam',
-#            'clipGB_2':'PilotCam',
-#            'clipGB_3':'BrowCam'
-#            }
-
         self.ID2GB = {
             'clipGB':self.hydeck1_label,
             'clipGB_2':self.hydeck2_label,
@@ -171,6 +264,8 @@ class HyperRecGUI(QMainWindow):
         self.odrflashtimer.timeout.connect(self.on_odrflashtimer_timeout)
         self.jdsflashtimer=QTimer()
         self.jdsflashtimer.timeout.connect(self.on_jdsflashtimer_timeout)
+        self.dpaflashtimer=QTimer()
+        self.dpaflashtimer.timeout.connect(self.on_dpaflashtimer_timeout)
         
         self.disp_systime_timer = QTimer()
         self.disp_systime_timer.timeout.connect(self.at_disp_systime_timeout)
@@ -180,15 +275,16 @@ class HyperRecGUI(QMainWindow):
         self.clipTimeHeartbeatTimer.timeout.connect(self.at_cliptimerheartbeat_timeout)
 
     def on_start_button(self):
+
         if ( self.deck1.isInitiated() == False):
             self.deck1.manual_start()
-            self.ui.clipGB.setStyleSheet("QGroupBox { border: 10px red;}")
+            self.ui.clipGB.setStyleSheet("QGroupBox#Deck1GB { border: 2px solid red;}")
         if ( self.deck2.isInitiated() == False):
             self.deck2.manual_start()
-            self.ui.clipGB_2.setStyleSheet("QGroupBox { border: 10px red;}")
+            self.ui.clipGB_2.setStyleSheet("QGroupBox#Deck2GB { border: 2px solid red;}")
         if ( self.deck3.isInitiated() == False):
             self.deck3.manual_start()
-            self.ui.clipGB_3.setStyleSheet("QGroupBox { border: 10px red;}")
+            self.ui.clipGB_2.setStyleSheet("QGroupBox#Deck3GB { border: 2px solid red;}")
 
         self.ui.recIconLabel.setStyleSheet("QLabel {background: red}")
 
@@ -199,13 +295,15 @@ class HyperRecGUI(QMainWindow):
 
         if ( self.deck1.isInitiated() == True):
             self.deck1.manual_stop()
-            self.ui.clipGB.setStyleSheet("QGroupBox { border: 10px black;}")
+            self.ui.clipGB.setStyleSheet("QGroupBox#Deck1GB { border: 2px solid black;}")
+
         if ( self.deck2.isInitiated() == True):
             self.deck2.manual_stop()
-            self.ui.clipGB_2.setStyleSheet("QGroupBox { border: 10px black;}")
+            self.ui.clipGB.setStyleSheet("QGroupBox#Deck2GB { border: 2px solid black;}")
+
         if ( self.deck3.isInitiated() == True):
             self.deck3.manual_stop()
-            self.ui.clipGB_3.setStyleSheet("QGroupBox { border: 10px black;}")
+            self.ui.clipGB.setStyleSheet("QGroupBox#Deck3GB { border: 2px solid black;}")
 
         if ( self.subtitleGen.isInitiated() == True):
             self.subtitleGen.stop_logging()
@@ -215,11 +313,23 @@ class HyperRecGUI(QMainWindow):
         self.clipTimeHeartbeatTimer.stop()
         
     def on_quit_button(self):
+        self.ui.quitButton.setText("Quitting")
+        self.ui.quitButton.setStyleSheet("QPushButton {background: green}")
+
+        self.subtitleGen.stop_logging()
+        
+        self.deck1.set_clipping(False)
+        self.deck2.set_clipping(False)
+        self.deck1.set_clipping(False)
+        
         self.deck1.manual_stop()
         self.deck2.manual_stop()
         self.deck3.manual_stop()
 
-        self.subtitleGen.stop_logging()
+        #self.deck1.manual_quit()
+        #self.deck2.manual_quit()
+        #self.deck3.manual_quit()
+
         QCoreApplication.exit()
 
     # def on_jds_receipt(self):
