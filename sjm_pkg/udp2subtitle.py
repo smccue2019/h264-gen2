@@ -3,11 +3,12 @@ import sys, string, pathlib, os
 import re, datetime
 from PyQt5.QtCore import Qt, pyqtSignal, QObject
 from PyQt5.QtCore import QTimer,QDateTime, QTextStream, QFile
+from PyQt5.QtWidgets import QMessageBox
 from sjm_pkg.time_routines import removeZZfromJDStime
 
 class UDP2subtitle(QObject):
 
-    new_captions = pyqtSignal(str,name = 'new_captions')
+    meta_closed = pyqtSignal(str,name = 'meta_closed')
     new_meta = pyqtSignal(str,str,str,str,name = 'new_meta')
     lowID = pyqtSignal(str, name = 'lowID')
 
@@ -90,10 +91,12 @@ class UDP2subtitle(QObject):
         self.srtstream3 << self.metastr3 << "\n"
         self.srtstream3 << "\n"
 
-        self.srtstream4 << self.srt_counter << "\n"
-        self.srtstream4 << sstr << "-->" << estr << "\n"
-        self.srtstream4 << self.metastr4 << "\n"
-        self.srtstream4 << "\n"
+        # Commented out 4/28/22 because things run when commented,
+        # seg fault when not. I dont yet know why.
+#        self.srtstream4 << self.srt_counter << "\n"
+#        self.srtstream4 << sstr << "-->" << estr << "\n"
+#        self.srtstream4 << self.metastr4 << "\n"
+#        self.srtstream4 << "\n"
 
     def updateDPAmsg(self, DPAmessage):
         # This one handles full record for logs
@@ -170,76 +173,82 @@ class UDP2subtitle(QObject):
     def new_clip(self):
         self.start_msec = epoch_msecs()
         self.srt_counter = 0
+       
+        self.close_outfiles()
         self.gen_new_outnames()
-        
-        self.close_outfies()
         self.open_outfiles()
 
-    def close_oufiles(self):
-        self.logfileh.close()
-        self.srtfile1h.close()
-        self.srtfile2h.close()
-        self.srtfile3h.close()
-        self.srtfile4h.close()
+    def close_outfiles(self):
+        try:
+            self.logfileh.close()
+        except:
+            print("failed to close logfile")
+
+        try:
+            self.srtfile1h.close()
+        except:
+            print("failed to close srtfile1")
+
+        try:
+            self.srtfile2h.close()
+        except:
+            print("failed to close srtfile2")
+
+        try:
+            self.srtfile3h.close()
+        except:
+            print("failed to close srtfile3")
+
+        try:
+            self.srtfile4h.close()
+        except:
+            print("failed to close srtfile4")
+
+        self.meta_closed.emit( systime() )
         
     def open_outfiles(self):
-        self.busy = True
-
-        #self.logfileh = QFile(self.logfile)
-        #self.logfileh.open(QFile.WriteOnly)
-        #self.srtfile1h = QFile(self.srtfile1)
-        #self.srtfile1h.open(QFile.WriteOnly)
-        #self.srtfile2h = QFile(self.srtfile2)
-        #self.srtfile2h.open(QFile.WriteOnly)
-        #self.srtfile3h = QFile(self.srtfile3)
-        #self.srtfile3h.open(QFile.WriteOnly)
-        #self.srtfile4h = QFile(self.srtfile4)
-        #self.srtfile4h.open(QFile.WriteOnly)
-        
-
         self.logfileh = QFile(self.logfile)
+        self.srtfile1h = QFile(self.srtfile1)
+        self.srtfile2h = QFile(self.srtfile2)
+        self.srtfile3h = QFile(self.srtfile3)
+        self.srtfile4h = QFile(self.srtfile4)
+
         if not self.logfileh.open(QFile.WriteOnly):
             QMessageBox.warning(self, \
-                                    self.tr \
-                                    ("Cant open file %1:\n%2").arg \
-                                   (self.logfile).arg(file.errorString()))
+                                self.tr \
+                                ("Cant open file %1:\n%2").arg \
+                                (self.logfile).arg(file.errorString()))
 
-        self.srtfile1h = QFile(self.srtfile1)
         if not self.srtfile1h.open(QFile.WriteOnly):
             QMessageBox.warning(self, \
-                                    self.tr \
-                                    ("Cant open file %1:\n%2").arg \
-                                    (self.srtfile1).arg(file.errorString()))
+                                self.tr \
+                                ("Cant open file %1:\n%2").arg \
+                                (self.srtfile1).arg(file.errorString()))
 
-        self.srtfile2h = QFile(self.srtfile2)
         if not self.srtfile2h.open(QFile.WriteOnly):
             QMessageBox.warning(self, \
-                                    self.tr \
-                                    ("Cant open file %1:\n%2").arg \
-                                    (self.srtfile2).arg(file.errorString()))
+                                self.tr \
+                                ("Cant open file %1:\n%2").arg \
+                                (self.srtfile2).arg(file.errorString()))
 
-        self.srtfile3h = QFile(self.srtfile3)
         if not self.srtfile3h.open(QFile.WriteOnly):
             QMessageBox.warning(self, \
-                                    self.tr \
-                                    ("Cant open file %1:\n%2").arg \
-                                    (self.srtfile3).arg(file.errorString()))
+                                self.tr \
+                                ("Cant open file %1:\n%2").arg \
+                                (self.srtfile3).arg(file.errorString()))
 
-        self.srtfile4h = QFile(self.srtfile4)
         if not self.srtfile4h.open(QFile.WriteOnly):
             QMessageBox.warning(self, \
-                                    self.tr \
-                                    ("Cant open file %1:\n%2").arg \
-                                    (self.srtfile4).arg(file.errorString()))
+                                self.tr \
+                                ("Cant open file %1:\n%2").arg \
+                                (self.srtfile4).arg(file.errorString()))
 
-
-        # Tie a QTextStream to each of the filehandles
+        self.srtstream4 = QTextStream(self.srtfile4h)
+        self.logstream = QTextStream(self.logfileh)
         self.srtstream1 = QTextStream(self.srtfile1h)
         self.srtstream2 = QTextStream(self.srtfile2h)
         self.srtstream3 = QTextStream(self.srtfile3h)
-        self.srtstream4 = QTextStream(self.srtfile4h)
-        self.logstream = QTextStream(self.logfileh)
-
+            
         self.new_meta.emit(self.srtfile1,self.srtfile2,self.srtfile3,self.srtfile4)
         
     def isInitiated(self):
@@ -253,7 +262,10 @@ class UDP2subtitle(QObject):
         txtoutpath = ("./Metadata/"+self.cruiseid+"/"+self.loweringid.rstrip())
 
         if not os.path.isdir(srtoutpath):
+            print("New subtitle outpath " + srtoutpath) 
             pathlib.Path(srtoutpath).mkdir(parents=True, exist_ok=True)
+        if not os.path.isdir(txtoutpath):
+            print("New logfile outpath " + txtoutpath) 
             pathlib.Path(txtoutpath).mkdir(parents=True, exist_ok=True)
 
         nowstr = systime()
@@ -264,20 +276,8 @@ class UDP2subtitle(QObject):
         self.srtfile4 = '%s/%s%s' % (srtoutpath, nowstr, '_st4.srt')
         
     def stop_logging(self):
-
-        try:
-            self.srtfileh
-        except:
-            pass
-        else:
-            self.srtfileh.close()
-
-             #     try:
-             #         self.logfileh
-             #     except:
-             #         pass
-             #     else:
-             #         self.logfileh.close()
+        self.initiated = False
+        self.close_outfiles()
         
     def get_metastr1(self):
         return self.metastr1
