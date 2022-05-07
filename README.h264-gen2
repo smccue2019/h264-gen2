@@ -1,0 +1,118 @@
+
+Generation 2 H264 Recorder
+1. Introduction
+Normal ROV Jason operations include the constant recordong of its three
+primary camera streams. This adds up to many camera-hours. In order to limit
+file volumes a high compression codec is required, and the h.264 codec has
+been chosen because of its wide hardware and software support.
+
+Jason's generation 1 recorder proved to be a impactful tool for data collection
+and has been useful since 2014. But, it is showing its age. The gen1 system
+was developed when fewer hardware options were available. Its feature set is
+limited, a result of utilizing PCI cards targeted at the gamer community. The
+final assembly of cards and open box computer enclosure is not well-suited for
+the rigors of seagoing operations. We have felt that two units should be run
+throughout dives to protect against loss of data. 
+
+The generation 2 design uses commercially built recorders that are expected
+to provide the following advantages:
+- higher reliability due to a commercially designed package.
+- higher reliability by replacing HDMI cabling with SDI cabling
+- supports embedded timecode in incoming SDI streams
+- visual feedback of the incoming stream is displayed by the recorder
+- color fidelity will likely be superior to the gen 1 recorder
+- through use of the same communication/control protocol, access to a product line
+of recorders (Blackmagic Design Hyperdeck) will be possible. We will have the option
+of adapting recorders to cameras instead of being forced to convert camera signals to
+recorder capabilities.
+
+The successful features of the generation 1 design will be carried forward. These
+include
+- adjustable partitioning of the recordings, typically into fifteen minute clips.
+- synchronization of clips start and end times across the three cameras.
+- collection of coregistered sensor measurements and metadata, formatted as
+subtitles, for selectble overlay by users during playback.
+- option of invoking auto on and off according to vehicle altitude. (yet to be
+implemented in gen2).
+
+Some of the less successful attributes of the gen 1 system have been improved. The
+code is better written and is easier to modify. Status logging has been implemented.
+Subtitles content has been tweaked to be more informative.
+
+2. Description
+
+The basic design of the gen2 recorder consists of a small form computer (Ubuntu
+Linux 20.04) controlling three Hyperdeck recorders while simultaneously writing
+subtitle files to local disk. Coding is in the Python language within the QT version 5
+framework. QT extensions add straightforward threading and signalling, as well as
+graphical user interface (GUI) widgets to interface with users.
+
+The control protocol is provided with the recorders by the manufacturer, with
+communication performed using TCPIP/ethernet networking. The control implemented
+by our particular system is largely commands to
+   A. "start recording a clip"
+   B. "stop recording clip"
+   C. "tell me you did what I asked" and
+   D. "tell me your current status".
+
+Clips are recorded to SD card and are combined with subtitles in post-processing.
+
+The GUI is a single window that provides the user with status information as well
+as basic start, stop, and quit controls. These simple controls support expected use,
+which is to begin recording at vehicle launch, to stop at vehicle recovery, and to
+quit when vehicle power is secured. Status indicators tell watchstanders about
+networked connection to sensor data and recording decks, about overall recorder
+function, and about SD card fullness. The recorder does most of the work, providing
+feedback to indicate operating status.
+
+Configuration is implemented by an .ini file that defines a small set of parameters:
+	      IP addressses of the recording decks
+	      labels for each of the camera streams
+	      and duration of the clips.
+This file is text and can be understood and modified by users with little familiarity
+with the recorder itself.
+
+Leveraging of the Hyperdeck line makes the gen2 recorder superior in most ways
+to the gen 1 recorder, but not in all ways. The standalone decks used in the gen2
+system complete status transitions more slowly than the PCI-cards in the gen1 recorder.
+This results in larger down times between clips, 2-5 seconds vs about 300 milliseconds.
+The transition times also appear to be a bit more variable. This increases the
+likeliood of the decks losing snchronicity with each other over a long duration
+lowering. Programming steps to reduce the likelihood have been implemented, and
+future changes will be made as necessry.
+
+3. Operation
+
+The Hyperdeck offers three codec output data rates, with higher fidelity corresponding
+to a higher output rate. These are set by specifying 'H264High', 'H264Med', or
+'H264Low'. In Jason opertions the standard codec will be the 'H264Med' product. File
+volumes will be approximately 14GB per hour per camera.
+
+Install SD cards into both of each decks slots. Format the cards using the deck front
+panel (first make several copies of video from prior lowerings). Log into the control
+computer h264-gen2 (1978.17.154.188). User 'installer'.
+
+Find and double-click the icon on the Desktop- "Run h264g2 Recorder".
+
+Let the GUI open and then wait for the status window for each deck fill in.
+Confirm the mode is "preview" and not "record". If you see a deck in "record"
+mode click the ESTOP button in the GUI window. After all decks move to preview
+status reformat the SD cards in whatever decks said they were in record mode.
+
+Confirm that the displayed date & time is correct. Remember that it is UTC
+date and time.
+
+You will be unable to start recording until a certain metadata broadcast message
+has been received by the control program. You may see the "O" box flash. This
+message gives the current value for lowering ID. After the message arrives,
+confirm that lowering ID is correct. The delay will be no more than about 9 seconds.
+
+As you wait, confirm that the other message receipt indicators ("J" and "D")
+are flashing about 1/sec. These messages populate the subtitles.
+
+When all looks as it should click Start. The borders of the deck and subtitle
+windows will turn green, indicating that recording has started.
+
+
+4. Post Processing
+

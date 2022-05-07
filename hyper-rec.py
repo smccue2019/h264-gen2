@@ -13,6 +13,8 @@ from sjm_pkg.sim_udp import JDS_generator, ODR_generator
 
 class HyperRecGUI(QMainWindow):
 
+    reset_event = pyqtSignal(name = "reset_event")
+    
     def __init__(self, inifname,parent=None):
         super(HyperRecGUI, self).__init__(parent)
 
@@ -33,6 +35,8 @@ class HyperRecGUI(QMainWindow):
 
         self.do_init(inifname)
 
+        self.reset_event.connect(self.on_reset_event)
+        
         # Allow simulate of UDP messges for debugging
         # Normal operation, set simulate_udp to False 
         simulate_udp = False
@@ -97,18 +101,21 @@ class HyperRecGUI(QMainWindow):
         self.deck3.clip_closed.connect(self.on_deck3_clip_closed)
         self.deck3.new_clip.connect(self.on_new_deck3_clip)
 
+    def on_reset_event(self):
+        self.on_stop_button()
+        QTimer.singleShot(1000, self.on_start_button)
+        
     def on_new_meta(self, srt1, srt2, srt3, srt4):
         self.ui.srtGB_pte.appendPlainText("New subtitles and metadata log")
         self.ui.srtGB_pte.appendPlainText(srt1)
         self.ui.srtGB_pte.appendPlainText(srt2)
         self.ui.srtGB_pte.appendPlainText(srt3)
         self.ui.srtGB_pte.appendPlainText(srt4)
-        self.ui.srtGB.setStyleSheet("QGroupBox#srtGB {background: darkRed}")
+        self.ui.srtGB.setStyleSheet("QGroupBox#srtGB {background: green}")
 
     def on_meta_closed(self, timestr):
-        return
         self.ui.srtGB_pte.appendPlainText("Subtitles and metadata log closed at " + timestr)
-        self.ui.srtGB.setStyleSheet("QGroupBox#srtGB {background: green}")
+        self.ui.srtGB.setStyleSheet("QGroupBox#srtGB {background: gray}")
         
     def on_deck1_new_status(self, ts, tid):
         # ts = transport status
@@ -184,6 +191,11 @@ class HyperRecGUI(QMainWindow):
             self.clipTimeRemaining = self.clip_minutes * 60
         else:
             self.clipTimeRemaining = -999.99
+
+        self.resetTracker += 1
+        if self.resetTracker == self.resetClipCounter:
+            self.resetTracker = 0
+            self.reset_event.emit()
         
     def on_new_deck1_clip(self, cn):
         self.subtitleGen.start_logging()
@@ -227,7 +239,7 @@ class HyperRecGUI(QMainWindow):
         # passed to instance of hyperdeck.py by child method
         # setInterclipDelay. It expects the dely value to be in seconds.
         self.deck1_delay, self.deck2_delay, self.deck3_delay = \
-            random.sample([1.96, 1.98, 2.0, 2.02, 2.04],k=3)
+            random.sample([1.98, 1.99, 2.0, 2.01, 2.02],k=3)
         
     def on_new_jds(self, new_jds):
         self.subtitleGen.updateJDS(new_jds)
@@ -251,13 +263,13 @@ class HyperRecGUI(QMainWindow):
         self.ui.ODRflash.setStyleSheet("QLabel {background: white}")
 
     def on_deck1_init(self, cam):
-        self.ui.clipGB.setStyleSheet("QGroupBox#Deck1GB {background: green}")
+        self.ui.clipGB.setStyleSheet("QGroupBox#Deck1GB {background: gray}")
 
     def on_deck2_init(self, cam):
-        self.ui.clipGB_2.setStyleSheet("QGroupBox#Deck2GB {background: green}")
+        self.ui.clipGB_2.setStyleSheet("QGroupBox#Deck2GB {background: gray}")
 
     def on_deck3_init(self, cam):
-        self.ui.clipGB_3.setStyleSheet("QGroupBox#Deck3GB {background: green}")
+        self.ui.clipGB_3.setStyleSheet("QGroupBox#Deck3GB {background: gray}")
 
     def at_cliptimerheartbeat_timeout(self):
         self.clipTimeRemaining -= 1
@@ -283,7 +295,9 @@ class HyperRecGUI(QMainWindow):
         self.clip_minutes = int(ip.get('CLIP','clip_duration_minutes'))
         self.clip_duration = self.clip_minutes * 60 * 1000
         self.clipTimeRemaining=(self.clip_minutes * 60)
-        
+        self.resetClipCounter = int(ip.get('CLIP', 'hard_reset_count'))
+        self.resetTracker = 0
+                                    
         self.ID2GB = {
             'clipGB':self.hydeck1_label,
             'clipGB_2':self.hydeck2_label,
@@ -325,15 +339,15 @@ class HyperRecGUI(QMainWindow):
 
         if ( self.deck1.isInitiated() == False):
             self.deck1.manual_start()
-            self.ui.clipGB.setStyleSheet("QGroupBox#Deck1GB { background: darkRed}")
+            self.ui.clipGB.setStyleSheet("QGroupBox#Deck1GB { background: green}")
         if ( self.deck2.isInitiated() == False):
             self.deck2.manual_start()
-            self.ui.clipGB_2.setStyleSheet("QGroupBox#Deck2GB {background: darkRed}")
+            self.ui.clipGB_2.setStyleSheet("QGroupBox#Deck2GB {background: green}")
         if ( self.deck3.isInitiated() == False):
             self.deck3.manual_start()
-            self.ui.clipGB_3.setStyleSheet("QGroupBox#Deck3GB {background: darkRed}")
+            self.ui.clipGB_3.setStyleSheet("QGroupBox#Deck3GB {background: green}")
 
-        self.ui.recIconLabel.setStyleSheet("QLabel {background: darkRed}")
+        self.ui.recIconLabel.setStyleSheet("QLabel {background: green}")
 
         self.cliptimecounter = 0
         self.clipTimeHeartbeatTimer.start(1000)
@@ -342,19 +356,19 @@ class HyperRecGUI(QMainWindow):
 
         if ( self.deck1.isInitiated() == True):
             self.deck1.manual_stop()
-            self.ui.clipGB.setStyleSheet("QGroupBox#Deck1GB {background: green}")
+            self.ui.clipGB.setStyleSheet("QGroupBox#Deck1GB {background: gray}")
 
         if ( self.deck2.isInitiated() == True):
             self.deck2.manual_stop()
-            self.ui.clipGB_2.setStyleSheet("QGroupBox#Deck2GB {background: green}")
+            self.ui.clipGB_2.setStyleSheet("QGroupBox#Deck2GB {background: gray}")
 
         if ( self.deck3.isInitiated() == True):
             self.deck3.manual_stop()
-            self.ui.clipGB_3.setStyleSheet("QGroupBox#Deck3GB {background: green}")
+            self.ui.clipGB_3.setStyleSheet("QGroupBox#Deck3GB {background: gray}")
 
         if ( self.subtitleGen.isInitiated() == True):
             self.subtitleGen.stop_logging()
-            self.ui.srtGB.setStyleSheet("QGroupBox#srtGB {background: green}")
+            self.ui.srtGB.setStyleSheet("QGroupBox#srtGB {background: gray}")
 
         self.ui.recIconLabel.setStyleSheet("QLabel {background: gray}")
         self.cliptimecounter = 0
@@ -374,7 +388,7 @@ class HyperRecGUI(QMainWindow):
 
     def on_quit_button(self):
         self.ui.quitButton.setText("Quitting")
-        self.ui.quitButton.setStyleSheet("QPushButton {background: green}")
+        self.ui.quitButton.setStyleSheet("QPushButton {background: red}")
 
         if self.subtitleGen.isInitiated() == True:
             self.subtitleGen.stop_logging()
